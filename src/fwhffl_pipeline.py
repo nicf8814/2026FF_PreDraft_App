@@ -25,6 +25,14 @@ CHANGES vs. the reference script (do not lose track of these if you resync):
      data.
   6. Everything else (Stages 1, 3, 4, 5, 6, Passes 1/2/5/6/7/8) is unchanged logic from
      the reference script.
+  7. BUGFIX (this adaptation, 2026-08-09): load_projections() parsed INT and FL columns
+     from the projection files but never applied them in SeasProj -- the reference
+     script has this same omission. League scoring (LEAGUE_RULES.md) charges -2 pts per
+     interception thrown and an effective -2 pts per fumble lost (VALIDATED_PARAMETERS.md
+     §Findings: reverse-engineered net of the manifesto's two stacking -1 rules).
+     FantasyPros projects fumbles LOST (not total fumbles), so the -2 coefficient is
+     applied directly per FL. Confirmed with the owner (Nic) before changing scoring
+     output. See docs/DRAFT_KIT_FRAMEWORK.md for the corrected SeasProj formula.
 
 Design decisions locked with the owner (unchanged from the reference script):
   - Games assumption = OPTION A: trust FantasyPros' seasonal blend as-is.
@@ -95,18 +103,23 @@ def load_projections():
     qb["Rec"] = 0.0; qb["ReYd"] = 0.0; qb["ReTD"] = 0.0
 
     for d in (rb, wr, te, qb):
-        for c in ["RuAtt","RuYd","RuTD","Rec","ReYd","ReTD"]:
+        for c in ["RuAtt","RuYd","RuTD","Rec","ReYd","ReTD","FL"]:
             d[c] = d[c].apply(_num)
     qb["PaYd"] = qb["PaYd"].apply(_num); qb["PaTD"] = qb["PaTD"].apply(_num)
+    qb["INT"] = qb["INT"].apply(_num)
 
     rb["Pos"] = "RB"; wr["Pos"] = "WR"; te["Pos"] = "TE"; qb["Pos"] = "QB"
     for d in (rb, wr, te):
-        d["PaYd"] = 0.0; d["PaTD"] = 0.0
+        d["PaYd"] = 0.0; d["PaTD"] = 0.0; d["INT"] = 0.0
 
-    cols = ["Player","Team","Pos","PaYd","PaTD","Rec","ReYd","ReTD","RuAtt","RuYd","RuTD"]
+    cols = ["Player","Team","Pos","PaYd","PaTD","INT","Rec","ReYd","ReTD","RuAtt","RuYd","RuTD","FL"]
     off = pd.concat([rb[cols], wr[cols], te[cols], qb[cols]], ignore_index=True)
-    off["SeasProj"] = (off.PaYd*.05 + off.PaTD*4 + off.RuYd*.15 + off.RuTD*6
-                       + off.Rec*.5 + off.ReYd*.15 + off.ReTD*6)
+    # Interceptions thrown (QB only) and fumbles lost (all positions) are both -2 pts
+    # per league scoring (LEAGUE_RULES.md). FantasyPros projects fumbles LOST, not total
+    # fumbles, so the -2 "effective" coefficient (VALIDATED_PARAMETERS.md's reverse-
+    # engineered net of the manifesto's two stacking -1 rules) is applied per FL directly.
+    off["SeasProj"] = (off.PaYd*.05 + off.PaTD*4 + off.INT*-2 + off.RuYd*.15 + off.RuTD*6
+                       + off.Rec*.5 + off.ReYd*.15 + off.ReTD*6 + off.FL*-2)
     off["PG_raw"] = off.SeasProj / 17.0
     return off.reset_index(drop=True), market
 

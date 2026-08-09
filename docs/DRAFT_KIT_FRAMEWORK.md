@@ -38,9 +38,21 @@ Combines per-position projection files (RB/WR/TE "flex" file + separate QB file)
 one dataframe scored under league rules:
 
 ```
-SeasProj = PaYd*0.05 + PaTD*4 + RuYd*0.15 + RuTD*6 + Rec*0.5 + ReYd*0.15 + ReTD*6
+SeasProj = PaYd*0.05 + PaTD*4 + INT*-2 + RuYd*0.15 + RuTD*6
+           + Rec*0.5 + ReYd*0.15 + ReTD*6 + FL*-2
 PG_raw   = SeasProj / 17
 ```
+
+**Correction (2026-08-09):** the reference script (and this kit's adapted version, until
+this fix) parsed `INT` and `FL` from the projection files but never subtracted them —
+`SeasProj` only summed the positive-scoring terms. League scoring charges −2 pts per
+interception thrown and an effective −2 pts per fumble lost (see
+`VALIDATED_PARAMETERS.md`). FantasyPros' files project fumbles *lost*, not total
+fumbles, so the −2 effective coefficient applies directly per `FL` — there's no
+separate "fumble happened but was recovered" term available in this data source.
+`src/fwhffl_pipeline.py` has been fixed; `src/fwhffl_pipeline_original_reference.py` is
+intentionally left with the original omission since it's kept as an untouched diff
+baseline.
 
 Also parses a market/cheat-sheet CSV into a `{player: $}` dict, used later purely as a
 shape anchor — never as an input to VORP or the base value.
