@@ -1,0 +1,29 @@
+name: Build
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run draft kit pipeline
+        run: python3 src/fwhffl_pipeline.py
+
+      - name: Upload pre-keeper board
+        uses: actions/upload-artifact@v4
+        with:
+          name: output_board_prekeeper
+          path: data/output_board_prekeeper.csv
